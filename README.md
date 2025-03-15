@@ -1,6 +1,6 @@
 # 作业管理系统
 
-这是一个基于Flask的作业管理系统，支持教师发布作业和学生提交作业的功能。
+这是一个基于python Flask框架的作业管理系统，支持教师发布作业和学生提交作业的功能。
 
 ## 功能特点
 
@@ -22,7 +22,7 @@
 
 1. 克隆仓库：
 ```bash
-git clone https://github.com/你的用户名/作业管理系统.git
+git clone https://github.com/YY127914/my_base.git
 cd 作业管理系统
 ```
 
