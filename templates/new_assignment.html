@@ -1,31 +1,71 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
+<div class="row justify-content-center fade-in">
+    <div class="col-lg-8">
         <div class="card">
-            <div class="card-header">
-                <h3 class="text-center">发布新作业</h3>
-            </div>
-            <div class="card-body">
+            <div class="card-body p-4 p-md-5">
+                <div class="mb-4 d-flex align-items-center">
+                    <i class="bi bi-journal-plus me-3" style="font-size: 2rem; color: var(--primary-color);"></i>
+                    <div>
+                        <h2 class="mb-1">发布新作业</h2>
+                        <p class="text-muted mb-0">创建一个新的作业供学生提交</p>
+                    </div>
+                </div>
+                
                 <form method="POST">
-                    <div class="mb-3">
-                        <label for="title" class="form-label">作业标题</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
+                    <div class="mb-4">
+                        <label for="title" class="form-label">
+                            <i class="bi bi-pencil-square me-2"></i>作业标题
+                        </label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="请输入作业的标题" required>
+                        <small class="text-muted ms-2">简明扼要地描述作业内容</small>
                     </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">作业描述</label>
-                        <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">
+                            <i class="bi bi-text-paragraph me-2"></i>作业描述
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="6" placeholder="请详细描述作业要求和注意事项" required></textarea>
+                        <small class="text-muted ms-2">详细描述作业的要求、格式和评分标准</small>
                     </div>
-                    <div class="mb-3">
-                        <label for="deadline" class="form-label">截止时间</label>
+                    
+                    <div class="mb-4">
+                        <label for="deadline" class="form-label">
+                            <i class="bi bi-calendar-event me-2"></i>截止时间
+                        </label>
                         <input type="datetime-local" class="form-control" id="deadline" name="deadline" required>
+                        <small class="text-muted ms-2">学生必须在此时间前提交作业</small>
                     </div>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">发布作业</button>
-                        <a href="{{ url_for('index') }}" class="btn btn-secondary">返回</a>
+                    
+                    <div class="row mt-5">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-arrow-left me-2"></i>返回首页
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-check2-circle me-2"></i>发布作业
+                            </button>
+                        </div>
                     </div>
                 </form>
+            </div>
+        </div>
+        
+        <!-- 作业创建提示 -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-lightbulb me-2 text-warning"></i>创建作业小贴士
+                </h5>
+                <ul class="mb-0">
+                    <li>作业标题应简洁明了，清晰表达主题</li>
+                    <li>作业描述中应包含详细要求、格式规范和评分标准</li>
+                    <li>设置合理的截止时间，给学生充足的完成时间</li>
+                    <li>已创建的作业可在首页查看和管理</li>
+                </ul>
             </div>
         </div>
     </div>

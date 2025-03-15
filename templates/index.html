@@ -1,35 +1,84 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
+<div class="row fade-in">
+    <!-- 欢迎部分 -->
+    <div class="col-12 welcome-section">
+        <h1>欢迎使用作业管理系统</h1>
+        <p>这里是一个便捷高效的平台，帮助教师发布作业和学生提交作业。</p>
+    </div>
+
     <div class="col-12">
-        <h1>作业列表</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>作业列表</h2>
+            {% if current_user.is_authenticated and current_user.is_teacher %}
+            <a href="{{ url_for('new_assignment') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>创建新作业
+            </a>
+            {% endif %}
+        </div>
+
         {% if current_user.is_authenticated %}
             {% if assignments %}
-                <div class="list-group">
+                <div class="assignment-list">
                     {% for assignment in assignments %}
-                    <div class="list-group-item">
-                        <h5 class="mb-1">{{ assignment.title }}</h5>
-                        <p class="mb-1">{{ assignment.description }}</p>
-                        <small>截止日期: {{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</small>
-                        <div class="mt-2">
-                            {% if current_user.is_teacher %}
-                                <a href="{{ url_for('view_submissions', assignment_id=assignment.id) }}" class="btn btn-primary">查看提交</a>
-                            {% else %}
-                                <a href="{{ url_for('submit_assignment', id=assignment.id) }}" class="btn btn-success">提交作业</a>
-                            {% endif %}
+                    <div class="assignment-item">
+                        <h5><i class="bi bi-journal-text me-2"></i>{{ assignment.title }}</h5>
+                        <p>{{ assignment.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="deadline"><i class="bi bi-calendar-event"></i>截止日期: {{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</span>
+                            <div>
+                                {% if current_user.is_teacher %}
+                                    <a href="{{ url_for('view_submissions', assignment_id=assignment.id) }}" class="btn btn-primary">
+                                        <i class="bi bi-eye me-1"></i>查看提交
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('submit_assignment', id=assignment.id) }}" class="btn btn-success">
+                                        <i class="bi bi-upload me-1"></i>提交作业
+                                    </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <p>暂无作业</p>
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-clipboard-x" style="font-size: 3rem; color: var(--text-muted);"></i>
+                        <h5 class="mt-3">暂无作业</h5>
+                        <p class="text-muted">当前没有可用的作业，请稍后再查看。</p>
+                    </div>
+                </div>
             {% endif %}
         {% else %}
-            <p>请先登录以查看作业列表</p>
-            <a href="{{ url_for('login') }}" class="btn btn-primary">登录</a>
-            <a href="{{ url_for('register') }}" class="btn btn-secondary">注册</a>
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-person-lock" style="font-size: 3rem; color: var(--text-muted);"></i>
+                    <h5 class="mt-3">请先登录</h5>
+                    <p class="text-muted mb-4">登录后即可查看作业列表和进行提交</p>
+                    <div>
+                        <a href="{{ url_for('login') }}" class="btn btn-primary me-2">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>登录
+                        </a>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-person-plus me-1"></i>注册
+                        </a>
+                    </div>
+                </div>
+            </div>
         {% endif %}
     </div>
 </div>
+
+<!-- 添加页脚 -->
+<footer class="footer mt-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center">
+                <p>© 2024 作业管理系统 - 让作业提交更简单</p>
+            </div>
+        </div>
+    </div>
+</footer>
 {% endblock %} 
