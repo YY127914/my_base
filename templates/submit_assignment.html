@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="text-center mb-0">提交作业</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h3>{{ assignment.title }}</h3>
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5 class="card-title">作业描述</h5>
+                            <p class="card-text">{{ assignment.description }}</p>
+                            <p class="card-text"><strong>截止日期：</strong> {{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="content" class="form-label">作业内容</label>
+                        <textarea class="form-control" id="content" name="content" rows="8" placeholder="请输入您的作业内容..."></textarea>
+                        <div class="form-text">您可以在这里输入文字内容，或者上传文件，或者两者都做。</div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="files" class="form-label">上传文件</label>
+                        <input type="file" class="form-control" id="files" name="files" multiple>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> 支持的文件类型：txt, pdf, png, jpg, jpeg, gif, doc, docx, py, zip, rar
+                            <br>
+                            <i class="bi bi-info-circle"></i> 单个文件大小限制：16MB
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle"></i> 提交作业
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> 取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
