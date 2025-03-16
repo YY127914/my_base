@@ -11,13 +11,28 @@
                     <p class="text-muted">请使用您的账号密码登录系统</p>
                 </div>
                 
+                <div class="alert alert-primary mb-4" style="border-left: 4px solid #0d6efd;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-2" style="font-size: 1.2rem; color: #0d6efd;"></i>
+                        <div>
+                            <strong style="font-size: 1.05rem;">重要登录提示：</strong> 
+                            <p class="mb-1 mt-1">学生请使用"<strong>学号+姓名</strong>"格式登录系统</p>
+                            <div class="bg-light p-2 rounded mt-1" style="border-left: 3px solid #0d6efd;">
+                                <code style="font-size: 1.1rem;">23209140xxx+姓名</code>
+                            </div>
+                            <small class="text-muted mt-1 d-block">使用此格式可确保系统正确识别您的身份并处理您的文件</small>
+                        </div>
+                    </div>
+                </div>
+                
                 <form method="POST" action="{{ url_for('login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0">
                                 <i class="bi bi-person"></i>
                             </span>
-                            <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="请输入用户名" required>
+                            <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="请输入用户名（学号+姓名，如：23209140xxx+姓名）" required>
                         </div>
                     </div>
                     

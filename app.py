@@ -43,13 +43,13 @@ app.config['PROPAGATE_EXCEPTIONS'] = True  # 便于调试
 
 # 添加缓存配置
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 300  # 静态文件缓存5分钟
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 会话有效期1小时
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # 会话最长持续2小时
 
 # 安全配置
-app.config['SESSION_COOKIE_SECURE'] = True  # 只通过HTTPS发送cookie
+app.config['SESSION_COOKIE_SECURE'] = False  # 开发环境中关闭此项，生产环境设为True
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # 防止JavaScript访问cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 防止CSRF攻击
-app.config['REMEMBER_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_SECURE'] = False  # 开发环境中关闭此项，生产环境设为True
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
 
@@ -130,9 +130,13 @@ def check_db_connection():
         # 检查数据库连接是否有效
         db.session.execute(text('SELECT 1'))
         
-        # 防止会话固定攻击
-        if '_fresh' in session and session['_fresh']:
-            session.regenerate()
+        # 防止会话固定攻击 - 修复regenerate方法
+        if '_fresh' in session and session.get('_fresh'):
+            # Flask的session没有regenerate方法，我们使用替代方式
+            session_data = dict(session)
+            session.clear()
+            for key, value in session_data.items():
+                session[key] = value
             
     except Exception as e:
         app.logger.error(f"数据库连接错误: {str(e)}")
@@ -154,9 +158,9 @@ def limit_request_rate():
             if now - request_history[old_ip]['timestamp'] > 3600:  # 1小时
                 del request_history[old_ip]
         
-        # 检查请求频率
+        # 检查请求频率 - 提高阈值，从10次改为20次
         if ip in request_history:
-            if request_history[ip]['count'] > 10 and now - request_history[ip]['timestamp'] < 300:  # 5分钟内超过10次
+            if request_history[ip]['count'] > 20 and now - request_history[ip]['timestamp'] < 300:  # 5分钟内超过20次
                 app.logger.warning(f"检测到可能的暴力破解尝试，IP: {ip}")
                 return render_template('error.html', error="请求过于频繁，请稍后再试"), 429
             
@@ -204,26 +208,55 @@ def rename_file(file, user_id):
     # 获取用户信息
     user = User.query.get(user_id)
     if not user:
+        app.logger.warning(f"重命名文件失败：找不到用户ID {user_id}")
         return secure_filename(file.filename)  # 如果找不到用户，使用原始文件名
     
     # 从用户名中提取姓名和学号
-    # 假设用户名格式为"姓名_学号"或其他格式
-    name_match = re.search(r'^([\u4e00-\u9fa5a-zA-Z]+)', user.username)
-    id_match = re.search(r'(\d+)', user.username)
+    # 支持两种格式："姓名_学号" 和 "学号+姓名"
+    name = ""
+    student_id = ""
     
-    name = name_match.group(1) if name_match else "用户"
-    student_id = id_match.group(1) if id_match else str(user_id)
+    app.logger.info(f"开始从用户名提取信息: {user.username}")
+    
+    # 先尝试匹配"姓名_学号"格式
+    name_id_match = re.match(r'^([\u4e00-\u9fa5a-zA-Z]+)_(\d+)$', user.username)
+    if name_id_match:
+        name = name_id_match.group(1)
+        student_id = name_id_match.group(2)
+        app.logger.info(f"匹配到姓名_学号格式")
+    else:
+        # 尝试匹配"学号+姓名"格式
+        id_name_match = re.match(r'^(\d+)([\u4e00-\u9fa5a-zA-Z]+)$', user.username)
+        if id_name_match:
+            student_id = id_name_match.group(1)
+            name = id_name_match.group(2)
+            app.logger.info(f"匹配到学号+姓名格式")
+        else:
+            # 如果不匹配，单独提取姓名和学号
+            name_match = re.search(r'([\u4e00-\u9fa5a-zA-Z]+)', user.username)
+            id_match = re.search(r'(\d+)', user.username)
+            
+            name = name_match.group(1) if name_match else "用户"
+            student_id = id_match.group(1) if id_match else str(user_id)
+            app.logger.info(f"使用通用正则提取")
+    
+    app.logger.info(f"文件重命名：从用户名 '{user.username}' 提取姓名='{name}'，学号='{student_id}'")
     
     # 生成新文件名：姓名_学号.扩展名
-    new_filename = f"{name}_{student_id}"
-    if ext:
-        new_filename = f"{new_filename}.{ext}"
+    base_filename = f"{name}_{student_id}"
     
     # 添加随机字符串确保唯一性
     random_suffix = uuid.uuid4().hex[:8]
-    new_filename = f"{name}_{student_id}_{random_suffix}.{ext}" if ext else f"{name}_{student_id}_{random_suffix}"
+    # 注意：不在这里添加扩展名，将在下一步组装完整文件名
+    new_filename = f"{base_filename}_{random_suffix}"
     
-    return secure_filename(new_filename)
+    # 记录生成的基础文件名
+    app.logger.info(f"生成的基础文件名: {new_filename}")
+    
+    # 返回带扩展名的完整文件名
+    final_filename = f"{new_filename}.{ext}" if ext else new_filename
+    app.logger.info(f"最终生成的文件名: {final_filename}")
+    return secure_filename(final_filename)
 
 
 # 数据模型定义
@@ -326,8 +359,12 @@ def login():
             login_user(user)
             app.logger.info(f"用户 {user.username} 登录成功")
             
-            # 防止会话固定攻击
-            session.regenerate()
+            # 防止会话固定攻击 - 替代 session.regenerate()
+            session_data = dict(session)
+            session.clear()
+            for key, value in session_data.items():
+                session[key] = value
+            
             return redirect(url_for('index'))
         
         app.logger.warning(f"登录失败: 用户名={username}, IP={request.remote_addr}")
@@ -337,7 +374,7 @@ def login():
 
 # 注册路由
 @app.route('/register', methods=['GET', 'POST'])
-@rate_limited(limit=5, period=300)  # 5分钟内最多5次注册尝试
+@rate_limited(limit=10, period=300)  # 5分钟内最多10次注册尝试，从5次改为10次
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -351,8 +388,8 @@ def register():
             flash('用户名只能包含中文、英文字母、数字和下划线', 'danger')
             return redirect(url_for('register'))
             
-        # 添加密码强度验证
-        if not validate_input(password, min_length=8, required=True) or \
+        # 添加密码强度验证 - 修复min_length参数
+        if len(password) < 8 or not validate_input(password, required=True) or \
            not re.search(r'[A-Z]', password) or \
            not re.search(r'[a-z]', password) or \
            not re.search(r'[0-9]', password):
@@ -392,7 +429,12 @@ def register():
 @login_required
 def logout():
     app.logger.info(f"用户 {current_user.username} 退出")
+    # 清除用户会话
     logout_user()
+    # 完全清除会话数据
+    session.clear()
+    # 显示登出成功消息
+    flash('您已成功退出登录', 'success')
     return redirect(url_for('index'))
 
 
@@ -451,7 +493,7 @@ def submit_assignment(id):
         # 验证所有文件大小总和
         total_size = 0
         for file in files:
-            if file:
+            if file and file.filename:
                 file.seek(0, os.SEEK_END)
                 size = file.tell()
                 file.seek(0)
@@ -486,14 +528,17 @@ def submit_assignment(id):
             app.logger.info(f"用户 {current_user.username} 创建了新提交: 作业ID={id}")
 
             # 处理文件上传
+            uploaded_files = 0
             for file in files:
                 if file and file.filename and allowed_file(file.filename):
                     try:
                         # 保存原始文件名
                         original_filename = secure_filename(file.filename)
+                        app.logger.info(f"开始处理文件: {original_filename}")
                         
                         # 使用自动重命名函数
                         new_filename = rename_file(file, current_user.id)
+                        app.logger.info(f"生成重命名后文件名: {new_filename}")
                         
                         # 添加提交ID确保唯一性
                         unique_filename = f"{submission.id}_{new_filename}"
@@ -515,8 +560,8 @@ def submit_assignment(id):
                             
                             # 简单的恶意代码标记检测（实际应用中应使用更完善的方法）
                             malicious_patterns = [
-                                'eval\(.*\)', 'system\(.*\)', 'exec\(.*\)', 
-                                'os\.system', 'subprocess\.', '__import__\('
+                                r'eval\((.*?)\)', r'system\((.*?)\)', r'exec\((.*?)\)', 
+                                r'os\.system', r'subprocess\.',  r'__import__\('
                             ]
                             for pattern in malicious_patterns:
                                 if re.search(pattern, file_content):
@@ -524,14 +569,48 @@ def submit_assignment(id):
                                     flash(f'文件 {original_filename} 包含潜在的不安全代码', 'danger')
                                     return redirect(url_for('submit_assignment', id=id))
                         
+                        # 保存文件到磁盘
                         file.save(file_path)
                         app.logger.info(f"文件已保存: {file_path}")
+                        uploaded_files += 1
+                        
+                        # 提取名称和学号显示在提交记录中
+                        # 不使用自动生成的文件名，而是明确使用姓名_学号格式
+                        # 获取用户信息，确保能显示正确的姓名和学号
+                        user = User.query.get(current_user.id)
+                        name = ""
+                        student_id = ""
+                        
+                        # 从用户名提取姓名和学号，与rename_file函数类似的逻辑
+                        name_id_match = re.match(r'^([\u4e00-\u9fa5a-zA-Z]+)_(\d+)$', user.username)
+                        if name_id_match:
+                            name = name_id_match.group(1)
+                            student_id = name_id_match.group(2)
+                        else:
+                            id_name_match = re.match(r'^(\d+)([\u4e00-\u9fa5a-zA-Z]+)$', user.username)
+                            if id_name_match:
+                                student_id = id_name_match.group(1)
+                                name = id_name_match.group(2)
+                            else:
+                                name_match = re.search(r'([\u4e00-\u9fa5a-zA-Z]+)', user.username)
+                                id_match = re.search(r'(\d+)', user.username)
+                                name = name_match.group(1) if name_match else "用户"
+                                student_id = id_match.group(1) if id_match else str(user.id)
+                        
+                        # 生成显示用的文件名，采用"姓名_学号.扩展名"格式
+                        if '.' in new_filename:
+                            file_ext = new_filename.rsplit('.', 1)[1]
+                            display_name = f"{name}_{student_id}.{file_ext}"
+                        else:
+                            display_name = f"{name}_{student_id}"
+                            
+                        app.logger.info(f"提交记录中显示名称: {display_name}")
                         
                         # 创建提交文件记录
                         submission_file = SubmissionFile(
-                            filename=unique_filename,
-                            original_filename=original_filename,
-                            file_type=unique_filename.rsplit('.', 1)[1].lower() if '.' in unique_filename else "",
+                            filename=unique_filename,  # 实际保存的文件名（用于存储）
+                            original_filename=display_name,  # 显示的文件名（修改为重命名格式）
+                            file_type=new_filename.rsplit('.', 1)[1].lower() if '.' in new_filename else "",
                             file_size=file_size,
                             file_hash=file_hash,
                             submission_id=submission.id
@@ -539,15 +618,23 @@ def submit_assignment(id):
                         db.session.add(submission_file)
                     except Exception as e:
                         app.logger.error(f"文件上传错误: {str(e)}")
+                        app.logger.error(traceback.format_exc())
                         flash(f'文件 {file.filename} 上传失败，请重试', 'danger')
                         continue
 
             db.session.commit()
-            flash('作业提交成功', 'success')
+            
+            # 提供更具体的成功消息
+            if uploaded_files > 0:
+                flash(f'作业提交成功，已上传 {uploaded_files} 个文件（自动重命名为姓名_学号格式）', 'success')
+            else:
+                flash('作业提交成功', 'success')
+                
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"提交作业错误: {str(e)}")
+            app.logger.error(traceback.format_exc())
             flash('提交过程中发生错误，请重试', 'danger')
             return redirect(url_for('submit_assignment', id=id))
             
@@ -631,6 +718,43 @@ def view_submissions(assignment_id):
     return render_template('view_submissions.html', assignment=assignment, submissions=submissions)
 
 
+# 学生查看自己的提交记录详情
+@app.route('/my-submissions')
+@login_required
+def my_submissions():
+    # 获取学生所有的提交记录
+    submissions = Submission.query.filter_by(user_id=current_user.id)\
+        .order_by(Submission.submitted_at.desc())\
+        .all()
+    
+    # 按作业分组组织提交记录
+    assignments_dict = {}
+    for submission in submissions:
+        if submission.assignment_id not in assignments_dict:
+            assignments_dict[submission.assignment_id] = {
+                'assignment': submission.assignment,
+                'submissions': []
+            }
+        assignments_dict[submission.assignment_id]['submissions'].append(submission)
+    
+    return render_template('my_submissions.html', assignments_dict=assignments_dict)
+
+
+# 学生查看单个提交详情
+@app.route('/my-submission/<int:submission_id>')
+@login_required
+def view_my_submission(submission_id):
+    # 获取提交记录，确保只能查看自己的记录
+    submission = Submission.query.get_or_404(submission_id)
+    
+    # 验证是否是当前用户的提交
+    if submission.user_id != current_user.id:
+        flash('您没有权限查看此提交记录', 'danger')
+        return redirect(url_for('my_submissions'))
+    
+    return render_template('view_my_submission.html', submission=submission)
+
+
 # 个人中心路由
 @app.route('/profile')
 @login_required
@@ -659,6 +783,30 @@ def request_entity_too_large(error):
 @app.route('/health')
 def health_check():
     return {'status': 'healthy'}, 200
+
+
+# 会话监控钩子
+@app.before_request
+def session_management():
+    # 检查会话是否已过期
+    if 'user_id' in session and 'last_active' in session:
+        last_active = datetime.fromisoformat(session['last_active'])
+        now = datetime.utcnow()
+        # 如果超过30分钟不活动，则自动登出
+        if (now - last_active).total_seconds() > 1800:  # 30分钟
+            app.logger.info(f"用户会话超时自动登出: {session.get('user_id')}")
+            logout_user()
+            session.clear()
+            flash('您的会话已过期，请重新登录', 'warning')
+            return redirect(url_for('login'))
+        
+        # 更新最后活动时间
+        session['last_active'] = datetime.utcnow().isoformat()
+
+    # 为登录用户设置初始会话数据
+    if current_user.is_authenticated and 'last_active' not in session:
+        session['last_active'] = datetime.utcnow().isoformat()
+        session.permanent = True  # 使会话持久化
 
 
 # 主程序入口

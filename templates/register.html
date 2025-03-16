@@ -11,15 +11,27 @@
                     <p class="text-muted">请填写以下信息完成注册</p>
                 </div>
                 
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <div>
+                            <strong>重要提示：</strong> 学生请使用"<strong>学号+姓名</strong>"格式注册（如：<code>23209140xxx+姓名</code>）
+                            <br>
+                            <small>正确的格式可以确保系统自动识别您的文件并正确命名</small>
+                        </div>
+                    </div>
+                </div>
+                
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0">
                                 <i class="bi bi-person"></i>
                             </span>
-                            <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="请设置用户名" required>
+                            <input type="text" class="form-control border-start-0" id="username" name="username" placeholder="请设置用户名（学生请用学号+姓名，如：23209140xxx+姓名）" required>
                         </div>
-                        <small class="text-muted ms-2">用户名将用于登录系统</small>
+                        <small class="text-muted ms-2">用户名将用于登录系统，学生推荐使用"学号+姓名"格式</small>
                     </div>
                     
                     <div class="mb-4">
