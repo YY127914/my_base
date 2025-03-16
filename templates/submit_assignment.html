@@ -40,14 +40,26 @@
                 </div>
                 {% endif %}
                 
-                <!-- 文件命名提醒 -->
-                <div class="alert alert-info mb-4">
+                <!-- 自动命名说明 -->
+                <div class="alert alert-success mb-4">
                     <div class="d-flex">
                         <i class="bi bi-file-earmark-text me-3" style="font-size: 1.5rem;"></i>
                         <div>
-                            <h5 class="mb-2">重要提示：文件命名规范</h5>
-                            <p class="mb-1">请按照以下格式命名您的文件：<strong class="text-danger">姓名_学号</strong>，例如：<code>张三_2023001234.py</code></p>
-                            <p class="mb-0">正确命名有助于教师快速识别和批改您的作业，不规范的命名可能影响成绩评定。</p>
+                            <h5 class="mb-2">文件命名说明</h5>
+                            <p class="mb-1">系统将根据您的用户名自动将上传文件重命名为<strong class="text-success">姓名_学号</strong>格式，无需手动修改文件名。</p>
+                            <p class="mb-0"><strong>请确保您的用户名格式正确</strong>，这将有助于文件的自动命名和教师批改。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 文件大小限制提醒 -->
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex">
+                        <i class="bi bi-exclamation-circle me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h5 class="mb-2">文件大小限制</h5>
+                            <p class="mb-1">单个文件和总文件大小均不能超过 <strong class="text-danger">5MB</strong>。如果超过此限制，提交将被拒绝。</p>
+                            <p class="mb-0">如需提交较大的文件，请压缩后上传或联系教师。</p>
                         </div>
                     </div>
                 </div>
@@ -55,6 +67,9 @@
                 <hr class="my-4">
                 
                 <form method="POST" enctype="multipart/form-data" id="submitForm">
+                    <!-- CSRF令牌，防止跨站请求伪造 -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
                     <div class="mb-4">
                         <label for="content" class="form-label fw-bold">
                             <i class="bi bi-pencil-square me-2"></i>作业内容
@@ -69,10 +84,10 @@
                                 <i class="bi bi-file-earmark-arrow-up me-2"></i>上传文件
                             </label>
                             
-                            <div class="file-upload-container p-4 mb-3 text-center border rounded" style="border-style: dashed !important;">
+                            <div class="file-upload-container p-4 mb-3 text-center border rounded" style="border-style: dashed !important; position: relative;">
                                 <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: var(--primary-color);"></i>
                                 <p class="mt-3 mb-2">点击选择文件或拖放文件到此处</p>
-                                <small class="text-muted d-block mb-3">支持多个文件上传</small>
+                                <small class="text-muted d-block mb-3">系统将自动重命名文件为"姓名_学号"格式</small>
                                 <input type="file" class="form-control" id="files" name="files" multiple style="opacity: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;">
                             </div>
                             
@@ -82,7 +97,7 @@
                                 <i class="bi bi-info-circle text-info me-2"></i>
                                 <div class="small">
                                     <strong>支持的文件类型：</strong> txt, pdf, png, jpg, jpeg, gif, doc, docx, py, zip, rar<br>
-                                    <strong>单个文件大小限制：</strong> 16MB
+                                    <strong>单个文件大小限制：</strong> 5MB (总大小不超过5MB)
                                 </div>
                             </div>
                         </div>
@@ -113,7 +128,8 @@
                     <li>提交后仍可在截止日期前重新提交</li>
                     <li>教师将只看到您的最新提交内容</li>
                     <li>确保您的文件格式符合作业要求</li>
-                    <li><strong>请务必按照 "姓名_学号" 的格式命名文件</strong></li>
+                    <li><strong>系统会自动将文件重命名为"姓名_学号"格式</strong></li>
+                    <li><strong>单个/总文件大小不超过5MB</strong></li>
                     <li>如遇技术问题，请及时联系教师</li>
                 </ul>
             </div>
@@ -125,6 +141,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.querySelector('input[type="file"]');
     const fileListContainer = document.querySelector('.selected-files');
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
     
     fileInput.addEventListener('change', function() {
       fileListContainer.innerHTML = '';
@@ -133,17 +150,32 @@
         const fileList = document.createElement('div');
         fileList.className = 'list-group mt-3';
         
-        // 添加命名提示标志
-        let hasWarning = false;
+        // 检查文件总大小
+        let totalSize = 0;
+        let hasOversizedFile = false;
+        
+        Array.from(this.files).forEach(file => {
+          totalSize += file.size;
+          if (file.size > maxFileSize) {
+            hasOversizedFile = true;
+          }
+        });
+        
+        // 显示总大小警告
+        if (totalSize > maxFileSize || hasOversizedFile) {
+          const sizeWarning = document.createElement('div');
+          sizeWarning.className = 'alert alert-danger mb-3';
+          sizeWarning.innerHTML = `
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>警告：</strong> ${hasOversizedFile ? '存在超过5MB的文件' : '文件总大小超过5MB'}。
+            请减少文件大小后再提交，否则提交将失败。
+          `;
+          fileListContainer.appendChild(sizeWarning);
+        }
         
         Array.from(this.files).forEach((file, index) => {
           const fileItem = document.createElement('div');
           fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-          
-          // 检查文件名是否符合命名规范(姓名_学号格式)
-          const fileName = file.name;
-          const namePattern = /^[\u4e00-\u9fa5a-zA-Z]+_\d+\.\w+$/;
-          const isValidName = namePattern.test(fileName);
           
           // 确定文件图标
           let fileIcon = 'bi-file-earmark';
@@ -151,22 +183,27 @@
           else if (file.type.includes('pdf')) fileIcon = 'bi-file-earmark-pdf';
           else if (file.type.includes('zip') || file.type.includes('rar')) fileIcon = 'bi-file-earmark-zip';
           else if (file.type.includes('word')) fileIcon = 'bi-file-earmark-word';
-          else if (file.type.includes('text')) fileIcon = 'bi-file-earmark-text';
+          else if (file.type.includes('text') || file.name.endsWith('.py')) fileIcon = 'bi-file-earmark-text';
           
-          // 添加文件名警告指示器
-          let nameWarning = '';
-          if (!isValidName) {
-            hasWarning = true;
-            nameWarning = '<span class="ms-2 text-danger"><i class="bi bi-exclamation-circle"></i> 文件名不符合规范</span>';
+          // 添加文件大小警告指示器
+          let sizeWarning = '';
+          if (file.size > maxFileSize) {
+            sizeWarning = '<span class="ms-2 text-danger"><i class="bi bi-exclamation-circle"></i> 文件过大</span>';
           }
           
+          // 显示文件将被重命名的提示
           fileItem.innerHTML = `
             <div>
               <i class="bi ${fileIcon} me-2"></i>
               <span>${file.name}</span>
-              ${nameWarning}
+              ${sizeWarning}
+              <div class="text-success small mt-1">
+                <i class="bi bi-arrow-right-circle"></i> 将自动重命名为"姓名_学号"格式
+              </div>
             </div>
-            <span class="badge bg-primary rounded-pill">${(file.size / 1024).toFixed(1)} KB</span>
+            <span class="badge ${file.size > maxFileSize ? 'bg-danger' : 'bg-primary'} rounded-pill">
+              ${(file.size / 1024).toFixed(1)} KB
+            </span>
           `;
           
           fileList.appendChild(fileItem);
@@ -174,36 +211,33 @@
         
         fileListContainer.appendChild(fileList);
         
-        // 如果有文件名不规范，添加警告提示
-        if (hasWarning) {
-          const warningDiv = document.createElement('div');
-          warningDiv.className = 'alert alert-warning mt-3';
-          warningDiv.innerHTML = `
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>注意：</strong> 您上传的部分文件名不符合"姓名_学号"的命名规范，为了确保作业能被正确识别，建议重命名后再上传。
-          `;
-          fileListContainer.appendChild(warningDiv);
-        }
+        // 添加总大小指示器
+        const totalSizeIndicator = document.createElement('div');
+        totalSizeIndicator.className = `d-flex justify-content-end mt-2 ${totalSize > maxFileSize ? 'text-danger' : 'text-muted'}`;
+        totalSizeIndicator.innerHTML = `
+          <small>总大小: ${(totalSize / 1024 / 1024).toFixed(2)} MB / 5 MB</small>
+        `;
+        fileListContainer.appendChild(totalSizeIndicator);
       }
     });
     
-    // 表单提交前检查文件名是否规范
+    // 表单提交前检查文件大小
     document.getElementById('submitForm').addEventListener('submit', function(e) {
       const files = fileInput.files;
       if (files.length > 0) {
-        let hasInvalidName = false;
-        const namePattern = /^[\u4e00-\u9fa5a-zA-Z]+_\d+\.\w+$/;
+        let totalSize = 0;
+        let hasOversizedFile = false;
         
         Array.from(files).forEach(file => {
-          if (!namePattern.test(file.name)) {
-            hasInvalidName = true;
+          totalSize += file.size;
+          if (file.size > maxFileSize) {
+            hasOversizedFile = true;
           }
         });
         
-        if (hasInvalidName) {
-          if (!confirm('您上传的部分文件名不符合"姓名_学号"的命名规范，这可能导致教师无法正确识别您的作业。是否仍要继续提交？')) {
-            e.preventDefault();
-          }
+        if (totalSize > maxFileSize || hasOversizedFile) {
+          e.preventDefault();
+          alert('文件大小超出限制(5MB)，请减少文件大小后再提交。');
         }
       }
     });
