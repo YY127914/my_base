@@ -69,6 +69,3 @@ python app.py
 - 支持的文件类型：txt, pdf, png, jpg, jpeg, gif, doc, docx, py, zip, rar
 - 建议使用现代浏览器访问系统
 
-## 许可证
-
-MIT License # homework-management-system
